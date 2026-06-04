@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "124102137395",
+    "project_id": "auth-99622",
+    "storage_bucket": "auth-99622.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:124102137395:android:e128d56b3e4a388cebb546",
+        "android_client_info": {
+          "package_name": "com.rohit.reactnative"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "124102137395-6sv9v5il43oblh6sek0hpotdp4hgl6ct.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDK_7svwwGwoScvGezA-pvnRxma9sYZtJo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "124102137395-6sv9v5il43oblh6sek0hpotdp4hgl6ct.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
