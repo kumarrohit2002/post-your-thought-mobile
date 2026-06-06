@@ -19,7 +19,7 @@ export const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
   className = "",
 }) => {
   return (
-    <SafeAreaView className={`flex-1 bg-[#F8FAFC] ${className}`}>
+    <SafeAreaView className={`flex-1 bg-[#F8FAFC] dark:bg-[#0A0A0C] ${className}`}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"

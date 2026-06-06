@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setUnauthorizedHandler } from "../services/api";
 
 let GoogleSignin: any = null;
 try {
@@ -64,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await AsyncStorage.removeItem("auth_token");
       if (GoogleSignin) {
@@ -81,7 +82,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (error) {
       console.error("Error removing token from AsyncStorage:", error);
     }
-  };
+  }, []);
+
+  // Automatically log out user if a 401 Unauthorized (expired token) response is received
+  useEffect(() => {
+    setUnauthorizedHandler(logout);
+    return () => {
+      setUnauthorizedHandler(() => {});
+    };
+  }, [logout]);
 
   const isAuthenticated = !!token;
 

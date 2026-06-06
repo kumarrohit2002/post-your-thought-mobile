@@ -1,6 +1,7 @@
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../context/AuthContext";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // Create a query client
 const queryClient = new QueryClient({
@@ -16,8 +17,10 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>{children}</AuthProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 };

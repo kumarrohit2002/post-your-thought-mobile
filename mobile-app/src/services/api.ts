@@ -50,4 +50,24 @@ api.interceptors.request.use(
   }
 );
 
+// Hold callback to trigger logout on token expiration
+let onUnauthorizedCallback: (() => void) | null = null;
+
+export const setUnauthorizedHandler = (callback: () => void) => {
+  onUnauthorizedCallback = callback;
+};
+
+// Handle 401 Unauthorized responses (token expiration) globally
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response && error.response.status === 401) {
+      if (onUnauthorizedCallback) {
+        onUnauthorizedCallback();
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
