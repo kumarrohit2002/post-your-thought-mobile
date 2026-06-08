@@ -2,6 +2,7 @@ import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../middlewares/authMiddleware";
 import { User } from "../models/userModel";
 import { Post } from "../models/postModel";
+import { JobQueue } from "../services/jobQueue";
 
 export class PostController {
   // 1. Create Post
@@ -58,6 +59,16 @@ export class PostController {
       });
 
       const savedPost = await newPost.save();
+
+      // Queue push notifications in background without blocking API response
+      JobQueue.addJob("send_new_post_notification", {
+        postId: savedPost._id.toString(),
+        authorId: user.uid,
+        authorName: user.name,
+        content: savedPost.content,
+      }).catch((err) => {
+        console.error("[PostController] Failed to queue post notification job:", err);
+      });
 
       res.status(201).json({
         success: true,

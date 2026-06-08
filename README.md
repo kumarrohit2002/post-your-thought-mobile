@@ -31,6 +31,63 @@ sequenceDiagram
     Express API (NodeJS)-->>Mobile Client (Expo): Return Feed JSON
 ```
 
+### 🔔 Asynchronous Push Notification Flow
+
+When a user creates a new post, the notification dispatching is decoupled from the main HTTP API request to keep API response times minimal (<50ms). The background queue and delivery worker follow this sequence:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Creator as User A (Post Creator)
+    participant Client as Mobile Client (Expo)
+    participant API as Express API Server
+    participant DB as MongoDB (Mongoose)
+    participant Worker as Background Job Worker
+    participant Expo as Expo Push Service
+    actor Recipient as User B (Notified User)
+
+    %% 1. Post Creation Flow
+    Creator->>Client: Clicks "Post Thought"
+    Client->>API: POST /api/posts (Content + Auth JWT)
+    API->>DB: Save Post Document
+    DB-->>API: Saved Post
+    API->>DB: Job.create(send_new_post_notification)
+    Note over API: Non-Blocking Queuing
+    API-->>Client: HTTP 201 (Post Created Successfully)
+    Client-->>Creator: Renders New Post (Feed Update)
+
+    %% 2. Background Queue Execution Flow
+    loop Every 5 Seconds (Worker Poll)
+        Worker->>DB: Find and Lock Pending Job (status: pending -> processing)
+        DB-->>Worker: Job Payload
+        
+        rect rgb(20, 20, 30)
+            Note over Worker: Execute Notification Job
+            Worker->>DB: Find eligible recipients (exclude author, settings.newPosts != false)
+            DB-->>Worker: List of Users & Push Tokens
+            Worker->>Worker: Chunk tokens into batches of 100
+            
+            Worker->>Expo: POST /--/api/v2/push/send (100 messages/batch)
+            Expo-->>Worker: Array of Tickets (status: ok/error)
+            
+            Worker->>DB: InsertMany into Notification Collection (History log)
+        end
+
+        %% 3. Token Pruning & Feedback
+        alt Unregistered Device Found
+            Note over Worker: Ticket error: DeviceNotRegistered
+            Worker->>DB: User.updateOne (pull invalid token from pushTokens)
+            DB-->>Worker: Pruned Successfully
+        end
+        
+        Expo-->>Recipient: Dispatches Push Notification (OS Tray alert)
+        Recipient->>Client: Taps Notification (payload: postId)
+        Client->>Client: Navigates to /post/[id]
+        
+        Worker->>DB: Update Job Status (status: completed)
+    end
+```
+
 ---
 
 ## 📂 Project Directory Structure
@@ -97,6 +154,31 @@ sequenceDiagram
 
 ---
 
+## 🔔 Push Notifications & Preferences (Production-Ready)
+
+This project contains a highly scalable, non-blocking notification engine built with Expo Push Notifications:
+
+1. **Decoupled Asynchronous Processing**:
+   - Creating a post immediately queues a background job (`send_new_post_notification`) in MongoDB via a lightweight task runner ([jobQueue.ts](file:///c:/Users/rohit/OneDrive/Desktop/rn/backend/src/services/jobQueue.ts)) and returns the API response instantly (<50ms).
+   - A background worker polls the `Job` collection to process pending notification tasks without blocking the main Express thread.
+
+2. **Bulk Chunking & Delivery**:
+   - The worker queries users who have `notificationSettings.newPosts` enabled (excluding the post author).
+   - Push tokens are grouped into batches of **100** (enforcing Expo's Push API chunk limit).
+   - Dispatches payloads containing structured routing metadata: `{ type: "new_post", postId }`.
+
+3. **Self-Cleaning Tokens**:
+   - On dispatch, the worker inspects the Expo push tickets. If a token returns `DeviceNotRegistered`, the worker automatically deletes that token from the User's `pushTokens` array in MongoDB.
+
+4. **In-App Inbox Tracking**:
+   - A history of dispatched notifications is recorded in the `Notification` collection to power a future in-app notification center.
+
+5. **Client-Side Deep Linking**:
+   - On the mobile client, [NotificationHandler.tsx](file:///c:/Users/rohit/OneDrive/Desktop/rn/mobile-app/src/components/NotificationHandler.tsx) sets up listeners. 
+   - When a notification is tapped, the app inspects the payload and uses Expo Router to navigate directly to the post details page at `/post/[id]`.
+
+---
+
 ## 🚀 Setup & Launch Instructions
 
 ### 1. Firebase Project Setup
@@ -130,17 +212,43 @@ sequenceDiagram
    EXPO_PUBLIC_API_URL=
    EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your_web_client_id.apps.googleusercontent.com
    ```
-2. Launch Mobile Client:
+2. **Push Notifications setup**:
+   EAS (Expo Application Services) requires a unique Project ID. Inside `mobile-app` directory, run:
+   ```bash
+   npx eas project:init
+   ```
+   Follow the login prompt to link the app to your Expo dashboard. This will add the `projectId` automatically to your `app.json` configuration.
+3. Launch Mobile Client:
    ```bash
    cd mobile-app
    npm install
    npx expo start -c
    ```
-3. Open **Expo Go** on your physical phone (on the same Wi-Fi network) or emulator and scan the QR code to run the application.
+4. **Important**: Since Android remote push notifications were removed from the Expo Go client in SDK 53+, you need a **Development Build** to test notifications end-to-end on Android. To install a dev client locally on your device or emulator:
+   ```bash
+   npx expo install expo-dev-client
+   npx expo run:android
+   ```
 
 ---
 
 ## 🧪 Database Models Schema Details
+
+### User Model
+```typescript
+User {
+  _id: ObjectId;
+  uid: String;               // Firebase User UID
+  name: String;
+  email: String;
+  phoneNumber: String;
+  pushTokens: String[];      // List of push tokens registered by the user
+  notificationSettings: {
+    newPosts: Boolean;       // Push notifications opt-in toggle (default: true)
+  };
+  createdAt: Date;
+}
+```
 
 ### Post Model
 ```typescript
@@ -170,3 +278,42 @@ Comment {
   createdAt: Date;
 }
 ```
+
+### Notification Model
+```typescript
+Notification {
+  _id: ObjectId;
+  userId: String;       // Target user recipient UID
+  title: String;
+  body: String;
+  postId: String;       // Linked Post ID
+  isRead: Boolean;      // Defaults to false
+  createdAt: Date;
+}
+```
+
+### Queue Job Model
+```typescript
+Job {
+  _id: ObjectId;
+  type: String;                          // e.g. "send_new_post_notification"
+  data: Object;                          // Payload arguments
+  status: "pending" | "processing" | "completed" | "failed";
+  attempts: Number;                      // Current retry count
+  maxAttempts: Number;                   // Retry limit
+  error: String;                         // Error logging for debugging
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+---
+
+## 👨‍💻 Developed By
+
+**Rohit Kumar**  
+*Full-Stack Developer*
+
+- 📧 **Email**: [rohitranjanrrsingh@gmail.com](mailto:rohitranjanrrsingh@gmail.com)
+- 💼 **LinkedIn**: [Rohit Kumar](https://www.linkedin.com/in/rohit-full-stack-dev/)
+

@@ -41,7 +41,14 @@
           }
         }
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#818CF8"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

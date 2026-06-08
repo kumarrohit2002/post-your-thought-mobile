@@ -3,6 +3,19 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../src/context/AuthContext";
 import { AppProviders } from "../src/providers/AppProviders";
 import "../global.css";
+import * as Notifications from "expo-notifications";
+import { NotificationHandler } from "../src/components/NotificationHandler";
+
+// Configure presentation behavior for notifications received when app is in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 import { View, ActivityIndicator, Text, useColorScheme } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
@@ -138,14 +151,17 @@ function AuthGuard() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="login" />
-      <Stack.Screen name="signup" />
-      <Stack.Screen name="index" />
-      <Stack.Screen name="profile" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="create-post" options={{ animation: "slide_from_bottom" }} />
-      <Stack.Screen name="post/[id]" options={{ animation: "slide_from_right" }} />
-    </Stack>
+    <>
+      {isAuthenticated && <NotificationHandler />}
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="login" />
+        <Stack.Screen name="signup" />
+        <Stack.Screen name="index" />
+        <Stack.Screen name="profile" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="create-post" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="post/[id]" options={{ animation: "slide_from_right" }} />
+      </Stack>
+    </>
   );
 }
 

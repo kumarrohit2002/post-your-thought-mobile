@@ -5,6 +5,10 @@ export interface IUser extends Document {
   name: string;
   email: string;
   phoneNumber: string;
+  pushTokens: string[];
+  notificationSettings: {
+    newPosts: boolean;
+  };
   createdAt: Date;
 }
 
@@ -19,6 +23,10 @@ const UserSchema: Schema = new Schema({
     trim: true,
   },
   phoneNumber: { type: String, default: "" },
+  pushTokens: { type: [String], default: [] },
+  notificationSettings: {
+    newPosts: { type: Boolean, default: true },
+  },
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -67,6 +67,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const logout = useCallback(async () => {
     try {
+      // Retrieve and deregister push token from backend if it exists
+      const storedPushToken = await AsyncStorage.getItem("push_token");
+      if (storedPushToken) {
+        try {
+          const { NotificationService } = require("../services/notificationService");
+          await NotificationService.removePushToken(storedPushToken);
+        } catch (tokenError) {
+          console.warn("Failed to remove push token from backend during logout:", tokenError);
+        }
+        await AsyncStorage.removeItem("push_token");
+      }
+
       await AsyncStorage.removeItem("auth_token");
       if (GoogleSignin) {
         try {

@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Pressable, Text, View, FlatList, useColorScheme } from "react-native";
+import { ActivityIndicator, Pressable, Text, View, FlatList, useColorScheme, Switch } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import { NotificationService } from "../src/services/notificationService";
 import { ScreenWrapper } from "../src/components/ScreenWrapper";
 import { Button } from "../src/components/Button";
 import { Avatar } from "../src/components/Avatar";
@@ -20,6 +21,26 @@ export default function Profile() {
   const [activeTab, setActiveTab] = useState<TabType>("thoughts");
 
   const { data: user, isLoading: isUserLoading, isError, error, refetch } = useUserProfileQuery();
+
+  const [newPostsEnabled, setNewPostsEnabled] = useState(true);
+
+  React.useEffect(() => {
+    if (user) {
+      const enabled = (user as any).notificationSettings?.newPosts !== false;
+      setNewPostsEnabled(enabled);
+    }
+  }, [user]);
+
+  const handleToggleNotifications = async (value: boolean) => {
+    setNewPostsEnabled(value);
+    try {
+      await NotificationService.updateNotificationSettings(value);
+    } catch (err) {
+      console.error("Failed to update notification settings:", err);
+      // Revert if API call fails
+      setNewPostsEnabled(!value);
+    }
+  };
 
   // Fetch posts to filter user's own thoughts
   const { data: postsData, isLoading: isPostsLoading } = usePostsQuery(1, 100);
@@ -180,6 +201,26 @@ export default function Profile() {
                       </View>
                     </View>
                   ) : null}
+
+                  <View className="flex-row items-center gap-4">
+                    <View className="h-10 w-10 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800/40">
+                      <Feather name="bell" size={16} color={isDark ? "#818CF8" : "#4F46E5"} />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                        New Post Notifications
+                      </Text>
+                      <Text className="text-[15px] font-bold text-slate-800 dark:text-slate-200 mt-0.5">
+                        {newPostsEnabled ? "Enabled" : "Disabled"}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={newPostsEnabled}
+                      onValueChange={handleToggleNotifications}
+                      trackColor={{ false: isDark ? "#334155" : "#E2E8F0", true: "#818CF8" }}
+                      thumbColor={newPostsEnabled ? "#4F46E5" : "#F4F4F5"}
+                    />
+                  </View>
 
                   <View className="flex-row items-center gap-4">
                     <View className="h-10 w-10 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800/40">
