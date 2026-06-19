@@ -1,0 +1,29 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**' # Sirf tab deploy hoga jab backend folder me changes honge
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd post-your-thought-mobile/backend
+            git pull origin main
+            sudo docker build -t my-backend-server .
+            sudo docker rm -f backend-api || true
+            sudo docker run -d -p 5000:5000 --name backend-api --env-file .env my-backend-server
